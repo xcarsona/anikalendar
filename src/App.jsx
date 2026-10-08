@@ -1,6 +1,53 @@
+import { useSchedule } from './hooks/useSchedule'
+
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+function ScheduleStatus({ schedule }) {
+  const { status, episodes, fetchedAt, isRefreshing, error, retry, refresh } = schedule
+
+  let message
+  if (retry) {
+    const seconds = Math.ceil(retry.waitMs / 1000)
+    message =
+      retry.reason === 'rate-limit'
+        ? `AniList is limiting requests — retrying in ${seconds}s…`
+        : `Couldn't reach AniList — retrying in ${seconds}s…`
+  } else if (status === 'loading') {
+    message = 'Loading this week’s schedule…'
+  } else if (status === 'ready') {
+    const time = new Date(fetchedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    message = `${episodes.length} episodes this week · updated ${time}${isRefreshing ? ' · refreshing…' : ''}`
+  }
+
+  return (
+    <div className="space-y-2" aria-live="polite">
+      {message && <p className="text-xs text-slate-500">{message}</p>}
+      {error && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-700/50 bg-amber-950/40 px-4 py-3 text-sm text-amber-200"
+        >
+          <span>
+            {error}
+            {status === 'ready' && ' Showing the last saved schedule.'}
+          </span>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={isRefreshing}
+            className="rounded-md bg-amber-800/60 px-3 py-1 text-xs font-medium hover:bg-amber-700/60 disabled:opacity-50"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function App() {
+  const schedule = useSchedule()
+
   return (
     <div className="min-h-svh flex flex-col">
       <header className="border-b border-slate-800 bg-slate-900/80">
@@ -16,6 +63,8 @@ function App() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6">
+        <ScheduleStatus schedule={schedule} />
+
         {/* Watchlist bar (Phase 5) */}
         <section aria-label="Watchlist">
           <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">
