@@ -3,12 +3,13 @@ import { AIRING_NOW_SECONDS, formatCountdown, getRemaining } from '../utils/time
 
 const SOON_SECONDS = 60 * 60
 
-export default function Countdown({ airingAt }) {
+/** `airingWindow`: seconds after the start to keep showing "Airing now". */
+export default function Countdown({ airingAt, airingWindow = AIRING_NOW_SECONDS }) {
   const now = useNow()
   const remaining = getRemaining(airingAt, now)
 
   if (remaining.done) {
-    return now - airingAt < AIRING_NOW_SECONDS ? (
+    return now - airingAt < airingWindow ? (
       <span role="timer" className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
         <span aria-hidden="true" className="size-2 motion-safe:animate-pulse rounded-full bg-emerald-400" />
         Airing now

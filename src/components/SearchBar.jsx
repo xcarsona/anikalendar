@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { searchAnime } from '../api/anilist'
+import { episodeLabel } from '../utils/format'
 import { formatAirDateTime } from '../utils/time'
 import Countdown from './Countdown'
 import PinButton from './PinButton'
@@ -8,8 +8,8 @@ const DEBOUNCE_MS = 300
 const MIN_LENGTH = 2
 const CACHE_LIMIT = 50
 
-// In-memory results by lowercased term, so retyping or backspacing to an
-// earlier query doesn't hit the API again.
+// In-memory results by section and lowercased term, so retyping or
+// backspacing to an earlier query doesn't hit the API again.
 const resultCache = new Map()
 
 function cacheResults(key, results) {
@@ -18,16 +18,15 @@ function cacheResults(key, results) {
   if (resultCache.size > CACHE_LIMIT) resultCache.delete(resultCache.keys().next().value)
 }
 
-function friendlyError(err) {
+function friendlyError(err, providerName) {
   if (err.retryAfterMs) {
-    return `AniList is limiting requests. Try again in about ${Math.ceil(err.retryAfterMs / 1000)}s.`
+    return `${providerName} is limiting requests. Try again in about ${Math.ceil(err.retryAfterMs / 1000)}s.`
   }
-  return "Search failed. Check your connection and try again."
+  return 'Search failed. Check your connection and try again.'
 }
 
-const STATUS_LABELS = { NOT_YET_RELEASED: 'Upcoming', RELEASING: 'Airing' }
-
-export default function SearchBar({ isPinned, onTogglePin }) {
+export default function SearchBar({ source, isPinned, onTogglePin }) {
+  const { search, provider } = source
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   // Last settled lookup that wasn't cached: { key, error }.
@@ -37,7 +36,7 @@ export default function SearchBar({ isPinned, onTogglePin }) {
   const panelId = useId()
 
   const term = query.trim()
-  const key = term.toLowerCase()
+  const key = `${source.id}:${term.toLowerCase()}`
   const isActive = term.length >= MIN_LENGTH
   const results = resultCache.get(key)
   const error = failure?.key === key ? failure.error : null
@@ -48,13 +47,13 @@ export default function SearchBar({ isPinned, onTogglePin }) {
     const controller = new AbortController()
     const timer = setTimeout(async () => {
       try {
-        const found = await searchAnime(term, { signal: controller.signal })
+        const found = await search(term, { signal: controller.signal })
         cacheResults(key, found)
         setVersion((v) => v + 1)
       } catch (err) {
         if (controller.signal.aborted) return
         console.error('[search] failed', err)
-        setFailure({ key, error: friendlyError(err) })
+        setFailure({ key, error: friendlyError(err, provider.name) })
       }
     }, DEBOUNCE_MS)
     // A newer keystroke cancels both the pending debounce and any request in flight.
@@ -62,26 +61,28 @@ export default function SearchBar({ isPinned, onTogglePin }) {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [term, key, isActive])
+  }, [term, key, isActive, search, provider.name])
 
   const showPanel = open && isActive
 
   return (
     <div
       role="search"
-      className="relative w-full sm:max-w-md"
+      // Not `relative` on phones: the results panel then anchors to the header
+      // and spans its full width instead of the narrow input.
+      className="w-full sm:relative sm:max-w-md"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false)
       }}
     >
       <label htmlFor={`${panelId}-input`} className="sr-only">
-        Search airing anime
+        {source.searchPlaceholder.replace('…', '')}
       </label>
       <input
         id={`${panelId}-input`}
         type="search"
         value={query}
-        placeholder="Search airing anime…"
+        placeholder={source.searchPlaceholder}
         autoComplete="off"
         aria-controls={panelId}
         aria-expanded={showPanel}
@@ -101,7 +102,7 @@ export default function SearchBar({ isPinned, onTogglePin }) {
           id={panelId}
           // Focusable so clicking the panel background doesn't count as leaving the search.
           tabIndex={-1}
-          className="absolute inset-x-0 top-full z-20 mt-2 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl shadow-black/40 focus:outline-none"
+          className="absolute inset-x-4 top-full z-20 mt-2 sm:inset-x-0 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl shadow-black/40 focus:outline-none"
         >
           <p aria-live="polite" className="px-3 pt-2 pb-1 text-xs text-slate-400">
             {isLoading
@@ -124,6 +125,7 @@ export default function SearchBar({ isPinned, onTogglePin }) {
             <ul className="divide-y divide-slate-800">
               {results.map((show) => (
                 <SearchResult
+                  providerName={provider.name}
                   key={show.mediaId}
                   show={show}
                   pinned={isPinned(show.mediaId)}
@@ -138,8 +140,8 @@ export default function SearchBar({ isPinned, onTogglePin }) {
   )
 }
 
-function SearchResult({ show, pinned, onTogglePin }) {
-  const { title, coverImage, siteUrl, format, status, nextEpisode } = show
+function SearchResult({ show, pinned, onTogglePin, providerName }) {
+  const { title, coverImage, siteUrl, details, nextEpisode } = show
   return (
     <li className="relative flex items-center gap-3 px-3 py-2">
       <div className="aspect-[2/3] w-10 shrink-0 overflow-hidden rounded bg-slate-800">
@@ -155,15 +157,15 @@ function SearchResult({ show, pinned, onTogglePin }) {
           className="line-clamp-2 text-sm font-medium hover:text-violet-300 hover:underline focus-visible:outline-2 focus-visible:outline-violet-400"
         >
           {title}
-          <span className="sr-only"> (opens AniList in a new tab)</span>
+          <span className="sr-only"> (opens {providerName} in a new tab)</span>
         </a>
         <p className="text-xs text-slate-400">
-          {[format?.replace('_', ' '), STATUS_LABELS[status]].filter(Boolean).join(' · ')}
+          {details.join(' · ')}
         </p>
         {nextEpisode ? (
           <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-slate-400">
             <span>
-              Ep {nextEpisode.episode} · {formatAirDateTime(nextEpisode.airingAt)}
+              {episodeLabel(nextEpisode, { short: true })} · {formatAirDateTime(nextEpisode.airingAt)}
             </span>
             <Countdown airingAt={nextEpisode.airingAt} />
           </p>

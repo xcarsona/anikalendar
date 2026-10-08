@@ -1,3 +1,5 @@
+import { formatLabel } from '../utils/format'
+
 const ANILIST_URL = 'https://graphql.anilist.co'
 const MAX_ATTEMPTS = 3
 // Safety valve so a misbehaving `hasNextPage` can't loop forever.
@@ -191,11 +193,14 @@ const SEARCH_QUERY = `
   }
 `
 
+const STATUS_LABELS = { NOT_YET_RELEASED: 'Upcoming', RELEASING: 'Airing' }
+
 /**
  * Search airing and upcoming anime by title. Fails fast on rate limits rather
  * than retrying, since the user is waiting on it. Results look like
- * { mediaId, title, coverImage, siteUrl, format, status, nextEpisode }, where
- * nextEpisode is { airingAt, episode } or null.
+ * { mediaId, title, coverImage, siteUrl, details, nextEpisode }, where
+ * `details` are short labels (format, status) and nextEpisode is
+ * { airingAt, episode } or null.
  */
 export async function searchAnime(term, { signal } = {}) {
   const data = await anilistRequest(SEARCH_QUERY, { search: term }, { signal, maxAttempts: 1 })
@@ -204,8 +209,7 @@ export async function searchAnime(term, { signal } = {}) {
     title: media.title.english ?? media.title.romaji,
     coverImage: media.coverImage?.large ?? null,
     siteUrl: media.siteUrl,
-    format: media.format,
-    status: media.status,
+    details: [formatLabel(media.format), STATUS_LABELS[media.status]].filter(Boolean),
     nextEpisode: media.nextAiringEpisode,
   }))
 }

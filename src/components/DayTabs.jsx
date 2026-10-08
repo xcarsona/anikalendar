@@ -11,9 +11,10 @@ const longDateFormat = new Intl.DateTimeFormat(undefined, {
 
 /**
  * Mon–Sun tab strip. `days` comes from weekDays(); `counts[i]` is the number
- * of episodes on day i (omitted while loading).
+ * of episodes on day i (omitted while loading); `accent` is the section's
+ * accent classes from sources.js.
  */
-export default function DayTabs({ days, counts, selected, onSelect }) {
+export default function DayTabs({ days, counts, selected, onSelect, accent }) {
   const tabRefs = useRef([])
 
   // Keep the selected tab visible when the strip scrolls. Only on changes:
@@ -73,14 +74,14 @@ export default function DayTabs({ days, counts, selected, onSelect }) {
             onClick={() => onSelect(day.index)}
             className={`flex min-w-0 flex-col items-center rounded-lg px-1 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 sm:min-w-16 sm:shrink-0 sm:px-3 sm:py-2 ${
               isSelected
-                ? 'bg-violet-600 text-white'
-                : `bg-slate-800/70 text-slate-300 hover:bg-slate-800 ${day.isToday ? 'ring-1 ring-violet-500/70 ring-inset' : ''}`
+                ? accent.tab
+                : `bg-slate-800/70 text-slate-300 hover:bg-slate-800 ${day.isToday ? `ring-1 ring-inset ${accent.todayRing}` : ''}`
             }`}
           >
             {/* Phones: weekday and count (today gets a ring). From sm: "Today", date and count. */}
             <span className="font-medium sm:hidden">{day.label}</span>
             <span className="hidden font-medium sm:inline">{day.isToday ? 'Today' : day.label}</span>
-            <span className={`text-xs ${isSelected ? 'text-violet-100' : 'text-slate-400'}`}>
+            <span className={`text-xs ${isSelected ? accent.tabSubtext : 'text-slate-400'}`}>
               <span className="hidden sm:inline">
                 {formatShortDate(day.date)}
                 {count !== undefined && ' · '}

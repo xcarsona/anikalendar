@@ -1,61 +1,34 @@
 import { useCallback, useEffect, useState } from 'react'
-
-const IDS_KEY = 'myWatchlist'
-// Title/cover/link for each pinned show, saved at pin time so the bar can
-// render shows that have no episode in this week's schedule.
-const META_KEY = 'myWatchlistMeta'
-
-function readIds() {
-  try {
-    const ids = JSON.parse(localStorage.getItem(IDS_KEY))
-    return Array.isArray(ids) ? ids.filter(Number.isInteger) : []
-  } catch {
-    return []
-  }
-}
-
-function readMeta() {
-  try {
-    const meta = JSON.parse(localStorage.getItem(META_KEY))
-    return meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {}
-  } catch {
-    return {}
-  }
-}
-
-function write(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Storage full or unavailable; the watchlist still works for this session.
-  }
-}
+import { readWatchlist, WATCHLIST_EVENT, writeWatchlist } from '../storage/watchlists'
 
 /**
- * Pinned shows, persisted in localStorage and synced across tabs. Call once
- * (in App) and pass it down.
+ * A section's pinned shows, persisted in localStorage under `keys`
+ * ({ ids, meta } storage key names) and kept in sync with other tabs and
+ * with backup imports. Call once per page and pass it down.
  *
  * Returns { ids, meta, isPinned(mediaId), pin(show), unpin(mediaId), toggle(show) }
  * where `show` is { mediaId, title, coverImage, siteUrl }.
  */
-export function useWatchlist() {
-  const [state, setState] = useState(() => ({ ids: readIds(), meta: readMeta() }))
+export function useWatchlist(keys) {
+  const [state, setState] = useState(() => readWatchlist(keys))
 
-  // Another tab changed the watchlist.
+  // Changed in another tab, or replaced by a backup import in this one.
   useEffect(() => {
-    function onStorage(event) {
-      if (event.key === IDS_KEY || event.key === META_KEY || event.key === null) {
-        setState({ ids: readIds(), meta: readMeta() })
-      }
+    const reload = () => setState(readWatchlist(keys))
+    const onStorage = (event) => {
+      if (event.key === keys.ids || event.key === keys.meta || event.key === null) reload()
     }
     window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [])
+    window.addEventListener(WATCHLIST_EVENT, reload)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener(WATCHLIST_EVENT, reload)
+    }
+  }, [keys])
 
   useEffect(() => {
-    write(IDS_KEY, state.ids)
-    write(META_KEY, state.meta)
-  }, [state])
+    writeWatchlist(keys, state)
+  }, [keys, state])
 
   const pin = useCallback(
     ({ mediaId, title, coverImage, siteUrl }) =>

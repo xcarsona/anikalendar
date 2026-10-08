@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useEffectEvent, useState } from 'react'
+import { setTitlePrefix } from '../utils/title'
 import { subscribeNow } from './useNow'
 
 export const DURATIONS = { work: 25 * 60 * 1000, break: 5 * 60 * 1000 }
 export const MODE_LABELS = { work: 'Focus', break: 'Break' }
 
 const STORAGE_KEY = 'pomodoro'
-const BASE_TITLE = typeof document !== 'undefined' ? document.title : ''
 
 const otherMode = (mode) => (mode === 'work' ? 'break' : 'work')
 const fresh = (mode) => ({ mode, endsAt: null, remainingMs: DURATIONS[mode] })
@@ -61,9 +61,7 @@ export function usePomodoro({ onComplete } = {}) {
 
   useEffect(() => {
     if (!isRunning) return
-    const setTitle = (ms) => {
-      document.title = `${formatClock(ms)} ${MODE_LABELS[mode]} · ${BASE_TITLE}`
-    }
+    const setTitle = (ms) => setTitlePrefix(`${formatClock(ms)} ${MODE_LABELS[mode]}`)
     setTitle(endsAt - Date.now())
     // Background subscription: keeps ticking while the tab is hidden, which
     // is exactly when the title countdown is useful.
@@ -78,7 +76,7 @@ export function usePomodoro({ onComplete } = {}) {
     )
     return () => {
       unsubscribe()
-      document.title = BASE_TITLE
+      setTitlePrefix(null)
     }
   }, [isRunning, endsAt, mode])
 

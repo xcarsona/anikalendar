@@ -1,11 +1,10 @@
+import { episodeLabel, formatLabel } from '../utils/format'
 import { formatAirTime } from '../utils/time'
 import Countdown from './Countdown'
 import PinButton from './PinButton'
 
-const FORMAT_LABELS = { TV_SHORT: 'TV Short', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' }
-
-export default function EpisodeCard({ episode, pinned, onTogglePin }) {
-  const { title, episode: number, airingAt, coverImage, siteUrl, format } = episode
+export default function EpisodeCard({ episode, pinned, onTogglePin, providerName, airingWindow }) {
+  const { title, airingAt, approximateTime, coverImage, siteUrl, format } = episode
 
   return (
     <article
@@ -28,21 +27,29 @@ export default function EpisodeCard({ episode, pinned, onTogglePin }) {
             className="hover:text-violet-300 hover:underline focus-visible:outline-2 focus-visible:outline-violet-400"
           >
             {title}
-            <span className="sr-only"> (opens AniList in a new tab)</span>
+            <span className="sr-only"> (opens {providerName} in a new tab)</span>
           </a>
         </h3>
         <p className="text-sm text-slate-400">
-          Episode {number}
+          {episodeLabel(episode)}
           {format && format !== 'TV' && (
             <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-400">
-              {FORMAT_LABELS[format] ?? format}
+              {formatLabel(format)}
             </span>
           )}
         </p>
         <p className="text-sm text-slate-300">
           <time dateTime={new Date(airingAt * 1000).toISOString()}>{formatAirTime(airingAt)}</time>
+          {approximateTime && (
+            <span
+              className="ml-1.5 text-xs text-slate-400"
+              title="The exact release time isn't published; this is an estimate."
+            >
+              (approx.)
+            </span>
+          )}
         </p>
-        <Countdown airingAt={airingAt} />
+        <Countdown airingAt={airingAt} airingWindow={airingWindow} />
       </div>
 
       {/* After the content so keyboard focus reaches the title link first. */}
