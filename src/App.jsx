@@ -1,6 +1,8 @@
+import { useMemo, useState } from 'react'
+import DayTabs, { DAY_PANEL_ID } from './components/DayTabs'
+import EpisodeCard, { EpisodeCardSkeleton } from './components/EpisodeCard'
 import { useSchedule } from './hooks/useSchedule'
-
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+import { groupByWeekday, weekDays, weekdayIndex, weekWindow } from './utils/time'
 
 function ScheduleStatus({ schedule }) {
   const { status, episodes, fetchedAt, isRefreshing, error, retry, refresh } = schedule
@@ -47,6 +49,18 @@ function ScheduleStatus({ schedule }) {
 
 function App() {
   const schedule = useSchedule()
+  const [selectedDay, setSelectedDay] = useState(() => weekdayIndex(new Date()))
+
+  const days = weekDays()
+  const { start, end } = weekWindow()
+  // A stale cache from an earlier day can include episodes before today; drop
+  // them so each weekday tab only shows its upcoming date.
+  const byDay = useMemo(
+    () => groupByWeekday(schedule.episodes.filter((e) => e.airingAt >= start && e.airingAt < end)),
+    [schedule.episodes, start, end],
+  )
+  const dayEpisodes = byDay[selectedDay]
+  const isLoading = schedule.status === 'loading'
 
   return (
     <div className="min-h-svh flex flex-col">
@@ -75,29 +89,29 @@ function App() {
           </div>
         </section>
 
-        {/* Day tabs (Phase 3) */}
-        <nav aria-label="Days of the week" className="flex gap-2 overflow-x-auto">
-          {DAYS.map((day) => (
-            <span
-              key={day}
-              className="rounded-md bg-slate-800 px-4 py-2 text-sm text-slate-300"
-            >
-              {day}
-            </span>
-          ))}
-        </nav>
+        <DayTabs
+          days={days}
+          counts={isLoading ? null : byDay.map((list) => list.length)}
+          selected={selectedDay}
+          onSelect={setSelectedDay}
+        />
 
-        {/* Episode grid (Phase 3) */}
-        <section
-          aria-label="Episodes"
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-        >
-          {Array.from({ length: 8 }, (_, i) => (
-            <div
-              key={i}
-              className="h-40 rounded-lg border border-slate-800 bg-slate-900"
-            />
-          ))}
+        <section id={DAY_PANEL_ID} role="tabpanel" aria-labelledby={`day-tab-${selectedDay}`}>
+          {isLoading || dayEpisodes.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {isLoading
+                ? Array.from({ length: 8 }, (_, i) => <EpisodeCardSkeleton key={i} />)
+                : dayEpisodes.map((episode) => (
+                    <EpisodeCard key={episode.scheduleId} episode={episode} />
+                  ))}
+            </div>
+          ) : (
+            schedule.status === 'ready' && (
+              <p className="rounded-lg border border-dashed border-slate-800 py-12 text-center text-slate-500">
+                Nothing airing this day.
+              </p>
+            )
+          )}
         </section>
       </main>
     </div>
