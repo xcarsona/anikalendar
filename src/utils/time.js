@@ -6,15 +6,39 @@ export function startOfLocalDay(date = new Date()) {
 }
 
 /**
- * The 7-day window starting at local midnight today, as unix seconds.
- * Uses calendar arithmetic rather than `start + 7 * 86400` so a DST change
- * inside the week doesn't shift the end by an hour.
+ * A `days`-long window starting at local midnight today, as unix seconds.
+ * Uses calendar arithmetic rather than `start + days * 86400` so a DST change
+ * inside the window doesn't shift the end by an hour.
  */
-export function weekWindow(date = new Date()) {
+export function weekWindow(date = new Date(), days = 7) {
   const end = new Date(date)
   end.setHours(0, 0, 0, 0)
-  end.setDate(end.getDate() + 7)
+  end.setDate(end.getDate() + days)
   return { start: startOfLocalDay(date), end: Math.floor(end.getTime() / 1000) }
+}
+
+/**
+ * Time left until `airingAt`. Both arguments are unix seconds.
+ * Returns { days, hours, minutes, seconds, total, done }.
+ */
+export function getRemaining(airingAt, now) {
+  const total = Math.max(0, airingAt - now)
+  return {
+    days: Math.floor(total / 86400),
+    hours: Math.floor((total % 86400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+    total,
+    done: total === 0,
+  }
+}
+
+const pad2 = (n) => String(n).padStart(2, '0')
+
+/** "2d 05h 07m 09s"; the days part is dropped when it's zero. */
+export function formatCountdown({ days, hours, minutes, seconds }) {
+  const clock = `${pad2(hours)}h ${pad2(minutes)}m ${pad2(seconds)}s`
+  return days > 0 ? `${days}d ${clock}` : clock
 }
 
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']

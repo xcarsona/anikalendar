@@ -1,0 +1,36 @@
+import { useNow } from '../hooks/useNow'
+import { formatCountdown, getRemaining } from '../utils/time'
+
+// AniList's schedule has no end time, so treat an episode as "airing" for
+// this long after it starts.
+const AIRING_NOW_SECONDS = 30 * 60
+const SOON_SECONDS = 60 * 60
+
+export default function Countdown({ airingAt }) {
+  const now = useNow()
+  const remaining = getRemaining(airingAt, now)
+
+  if (remaining.done) {
+    return now - airingAt < AIRING_NOW_SECONDS ? (
+      <span role="timer" className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
+        <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-emerald-400" />
+        Airing now
+      </span>
+    ) : (
+      <span role="timer" className="text-sm text-slate-500">
+        Aired
+      </span>
+    )
+  }
+
+  const isSoon = remaining.total < SOON_SECONDS
+  return (
+    <span
+      role="timer"
+      className={`text-sm tabular-nums ${isSoon ? 'font-semibold text-amber-300' : 'text-slate-400'}`}
+    >
+      {isSoon && <span className="sr-only">Starting soon: </span>}
+      {formatCountdown(remaining)}
+    </span>
+  )
+}

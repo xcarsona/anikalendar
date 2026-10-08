@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import DayTabs, { DAY_PANEL_ID } from './components/DayTabs'
 import EpisodeCard, { EpisodeCardSkeleton } from './components/EpisodeCard'
+import { useToday } from './hooks/useNow'
 import { useSchedule } from './hooks/useSchedule'
 import { groupByWeekday, weekDays, weekdayIndex, weekWindow } from './utils/time'
 
-function ScheduleStatus({ schedule }) {
-  const { status, episodes, fetchedAt, isRefreshing, error, retry, refresh } = schedule
+function ScheduleStatus({ schedule, weekCount }) {
+  const { status, fetchedAt, isRefreshing, error, retry, refresh } = schedule
 
   let message
   if (retry) {
@@ -18,7 +19,7 @@ function ScheduleStatus({ schedule }) {
     message = 'Loading this week’s schedule…'
   } else if (status === 'ready') {
     const time = new Date(fetchedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    message = `${episodes.length} episodes this week · updated ${time}${isRefreshing ? ' · refreshing…' : ''}`
+    message = `${weekCount} episodes this week · updated ${time}${isRefreshing ? ' · refreshing…' : ''}`
   }
 
   return (
@@ -51,10 +52,12 @@ function App() {
   const schedule = useSchedule()
   const [selectedDay, setSelectedDay] = useState(() => weekdayIndex(new Date()))
 
-  const days = weekDays()
-  const { start, end } = weekWindow()
-  // A stale cache from an earlier day can include episodes before today; drop
-  // them so each weekday tab only shows its upcoming date.
+  const today = new Date(useToday() * 1000)
+  const days = weekDays(today)
+  const { start, end } = weekWindow(today)
+  // Keep only this 7-day window: the data runs one day longer (next week's
+  // episodes of today's shows), and a stale cache can start before today.
+  // Either would put two dates' shows under one weekday tab.
   const byDay = useMemo(
     () => groupByWeekday(schedule.episodes.filter((e) => e.airingAt >= start && e.airingAt < end)),
     [schedule.episodes, start, end],
@@ -77,7 +80,7 @@ function App() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6">
-        <ScheduleStatus schedule={schedule} />
+        <ScheduleStatus schedule={schedule} weekCount={byDay.flat().length} />
 
         {/* Watchlist bar (Phase 5) */}
         <section aria-label="Watchlist">

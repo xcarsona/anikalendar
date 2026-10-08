@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchSchedule } from '../api/anilist'
 import { weekWindow } from '../utils/time'
+import { getNow, subscribeNow, useToday } from './useNow'
 
-const CACHE_KEY = 'animeSchedule:v1'
+const CACHE_KEY = 'animeSchedule:v2'
 const CACHE_TTL_MS = 30 * 60 * 1000
+// One day longer than the 7 shown, so a weekly show that aired today (or
+// earlier today) always has its next episode in the data.
+const FETCH_DAYS = 8
+// After a watched episode airs, wait a bit before refetching, and never
+// refetch for this reason more often than the minimum gap.
+const AIRED_REFETCH_DELAY_MS = 60 * 1000
+const AIRED_REFETCH_MIN_GAP_MS = 10 * 60 * 1000
 
 function readCache() {
   try {
@@ -23,10 +31,10 @@ function writeCache(entry) {
 }
 
 // A cache from before midnight covers the wrong window even if it's recent.
-function isFresh(cache) {
+function isFresh(cache, windowStart = weekWindow().start) {
   return (
     cache !== null &&
-    cache.windowStart === weekWindow().start &&
+    cache.windowStart === windowStart &&
     Date.now() - cache.fetchedAt < CACHE_TTL_MS
   )
 }
@@ -36,6 +44,7 @@ function isFresh(cache) {
 let inflight = null
 // After giving up on a rate limit, refuse new requests until it resets.
 let blockedUntil = 0
+let lastAiredRefetch = 0
 
 function loadWeek(onRetry) {
   if (Date.now() < blockedUntil) {
@@ -44,7 +53,7 @@ function loadWeek(onRetry) {
     return Promise.reject(err)
   }
   if (!inflight) {
-    const { start, end } = weekWindow()
+    const { start, end } = weekWindow(new Date(), FETCH_DAYS)
     inflight = fetchSchedule({ start, end, onRetry })
       .then((episodes) => {
         const entry = { fetchedAt: Date.now(), windowStart: start, episodes }
@@ -72,15 +81,21 @@ function friendlyError(err) {
 }
 
 /**
- * This week's airing episodes, served from a 30-minute localStorage cache when
- * possible. Call once (in App) and pass the data down.
+ * Airing episodes from local midnight today through the next 8 days, served
+ * from a 30-minute localStorage cache when possible. Refetches when the day
+ * changes and shortly after a watched episode airs. Call once (in App) and
+ * pass the data down.
+ *
+ * `watchedMediaIds` limits which shows trigger the after-airing refetch;
+ * omit it to watch every episode.
  *
  * Returns { episodes, status, isRefreshing, error, retry, fetchedAt, refresh }:
  * - status: 'loading' (no data yet) | 'ready' | 'error' (no data and it failed)
  * - error: friendly message; can be set alongside stale data
  * - retry: { reason, waitMs, until } while waiting to retry, else null
  */
-export function useSchedule() {
+export function useSchedule({ watchedMediaIds } = {}) {
+  const today = useToday()
   const [state, setState] = useState(() => {
     const cache = readCache()
     return {
@@ -125,9 +140,10 @@ export function useSchedule() {
     return load()
   }, [load])
 
+  // Runs on mount and again after midnight, when the cached window goes stale.
   useEffect(() => {
     const cache = readCache()
-    if (isFresh(cache)) {
+    if (isFresh(cache, today)) {
       const ageMin = Math.round((Date.now() - cache.fetchedAt) / 60000)
       console.log(`[schedule] using cache (${ageMin} min old, ${cache.episodes.length} episodes)`, cache.episodes)
       return
@@ -135,7 +151,42 @@ export function useSchedule() {
     // load() only sets state after the fetch settles, not synchronously.
     // oxlint-disable-next-line react/set-state-in-effect
     load()
-  }, [load])
+  }, [load, today])
+
+  // When a watched episode's air time passes (including while the tab was
+  // hidden, caught on the first tick after it's visible again), refetch in
+  // the background so schedule changes and the next episode show up.
+  const watchedKey = watchedMediaIds ? [...watchedMediaIds].sort().join(',') : '*'
+  useEffect(() => {
+    const ids = watchedKey === '*' ? null : new Set(watchedKey.split(',').map(Number))
+    const airTimes = state.episodes
+      .filter((e) => !ids || ids.has(e.mediaId))
+      .map((e) => e.airingAt)
+    if (airTimes.length === 0) return
+
+    let prev = getNow()
+    let timer = null
+    const unsubscribe = subscribeNow(() => {
+      const now = getNow()
+      const justAired = airTimes.some((t) => t > prev && t <= now)
+      prev = now
+      if (!justAired || timer) return
+      const waitMs = Math.max(
+        AIRED_REFETCH_DELAY_MS,
+        lastAiredRefetch + AIRED_REFETCH_MIN_GAP_MS - Date.now(),
+      )
+      console.log(`[schedule] watched episode aired; refetching in ${Math.round(waitMs / 1000)}s`)
+      timer = setTimeout(() => {
+        timer = null
+        lastAiredRefetch = Date.now()
+        refresh()
+      }, waitMs)
+    })
+    return () => {
+      unsubscribe()
+      clearTimeout(timer)
+    }
+  }, [state.episodes, watchedKey, refresh])
 
   return { ...state, refresh }
 }

@@ -1,4 +1,5 @@
 import { formatAirTime } from '../utils/time'
+import Countdown from './Countdown'
 
 const FORMAT_LABELS = { TV_SHORT: 'TV Short', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' }
 
@@ -36,6 +37,7 @@ export default function EpisodeCard({ episode }) {
         <p className="text-sm text-slate-300">
           <time dateTime={new Date(airingAt * 1000).toISOString()}>{formatAirTime(airingAt)}</time>
         </p>
+        <Countdown airingAt={airingAt} />
       </div>
     </article>
   )
