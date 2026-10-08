@@ -17,6 +17,10 @@ export function weekWindow(date = new Date(), days = 7) {
   return { start: startOfLocalDay(date), end: Math.floor(end.getTime() / 1000) }
 }
 
+// AniList's schedule has no end time, so treat an episode as "airing" for
+// this long after it starts.
+export const AIRING_NOW_SECONDS = 30 * 60
+
 /**
  * Time left until `airingAt`. Both arguments are unix seconds.
  * Returns { days, hours, minutes, seconds, total, done }.

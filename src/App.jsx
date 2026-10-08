@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import DayTabs, { DAY_PANEL_ID } from './components/DayTabs'
 import EpisodeCard, { EpisodeCardSkeleton } from './components/EpisodeCard'
+import WatchlistBar from './components/WatchlistBar'
 import { useToday } from './hooks/useNow'
 import { useSchedule } from './hooks/useSchedule'
+import { useWatchlist } from './hooks/useWatchlist'
 import { groupByWeekday, weekDays, weekdayIndex, weekWindow } from './utils/time'
 
 function ScheduleStatus({ schedule, weekCount }) {
@@ -49,7 +51,9 @@ function ScheduleStatus({ schedule, weekCount }) {
 }
 
 function App() {
-  const schedule = useSchedule()
+  const watchlist = useWatchlist()
+  // Only pinned shows trigger the after-airing refetch.
+  const schedule = useSchedule({ watchedMediaIds: watchlist.ids })
   const [selectedDay, setSelectedDay] = useState(() => weekdayIndex(new Date()))
 
   const today = new Date(useToday() * 1000)
@@ -82,15 +86,13 @@ function App() {
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6">
         <ScheduleStatus schedule={schedule} weekCount={byDay.flat().length} />
 
-        {/* Watchlist bar (Phase 5) */}
-        <section aria-label="Watchlist">
-          <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">
-            Watchlist
-          </h2>
-          <div className="rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-500">
-            Pinned shows will appear here.
-          </div>
-        </section>
+        <WatchlistBar
+          ids={watchlist.ids}
+          meta={watchlist.meta}
+          episodes={schedule.episodes}
+          scheduleStatus={schedule.status}
+          onUnpin={watchlist.unpin}
+        />
 
         <DayTabs
           days={days}
@@ -105,7 +107,12 @@ function App() {
               {isLoading
                 ? Array.from({ length: 8 }, (_, i) => <EpisodeCardSkeleton key={i} />)
                 : dayEpisodes.map((episode) => (
-                    <EpisodeCard key={episode.scheduleId} episode={episode} />
+                    <EpisodeCard
+                      key={episode.scheduleId}
+                      episode={episode}
+                      pinned={watchlist.isPinned(episode.mediaId)}
+                      onTogglePin={() => watchlist.toggle(episode)}
+                    />
                   ))}
             </div>
           ) : (

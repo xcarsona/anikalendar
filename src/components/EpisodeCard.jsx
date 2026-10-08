@@ -1,13 +1,18 @@
 import { formatAirTime } from '../utils/time'
 import Countdown from './Countdown'
+import PinButton from './PinButton'
 
 const FORMAT_LABELS = { TV_SHORT: 'TV Short', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' }
 
-export default function EpisodeCard({ episode }) {
+export default function EpisodeCard({ episode, pinned, onTogglePin }) {
   const { title, episode: number, airingAt, coverImage, siteUrl, format } = episode
 
   return (
-    <article className="flex gap-3 rounded-lg border border-slate-800 bg-slate-900 p-3">
+    <article
+      className={`relative flex gap-3 rounded-lg border bg-slate-900 p-3 ${
+        pinned ? 'border-amber-500/40' : 'border-slate-800'
+      }`}
+    >
       <div className="aspect-[2/3] w-20 shrink-0 overflow-hidden rounded-md bg-slate-800">
         {coverImage && (
           <img src={coverImage} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -15,7 +20,7 @@ export default function EpisodeCard({ episode }) {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h3 className="line-clamp-2 font-medium leading-snug">
+        <h3 className="line-clamp-2 pr-7 font-medium leading-snug">
           <a
             href={siteUrl}
             target="_blank"
@@ -39,6 +44,14 @@ export default function EpisodeCard({ episode }) {
         </p>
         <Countdown airingAt={airingAt} />
       </div>
+
+      {/* After the content so keyboard focus reaches the title link first. */}
+      <PinButton
+        pinned={pinned}
+        title={title}
+        onToggle={onTogglePin}
+        className="absolute top-2 right-2"
+      />
     </article>
   )
 }

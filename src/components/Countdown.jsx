@@ -1,9 +1,6 @@
 import { useNow } from '../hooks/useNow'
-import { formatCountdown, getRemaining } from '../utils/time'
+import { AIRING_NOW_SECONDS, formatCountdown, getRemaining } from '../utils/time'
 
-// AniList's schedule has no end time, so treat an episode as "airing" for
-// this long after it starts.
-const AIRING_NOW_SECONDS = 30 * 60
 const SOON_SECONDS = 60 * 60
 
 export default function Countdown({ airingAt }) {
