@@ -1,31 +1,41 @@
 import { useSyncExternalStore } from 'react'
 import { startOfLocalDay } from '../utils/time'
 
-// One app-wide ticker. Every subscriber shares a single setInterval, which
-// only runs while something is subscribed and the tab is visible. The value
-// is always read from Date.now(), so pausing or a late tick never causes drift.
+// One app-wide ticker. Every subscriber shares a single setInterval. It runs
+// while the tab is visible and something is subscribed, and keeps running
+// while hidden only if a background subscriber (the Pomodoro timer) needs it;
+// hidden ticks are delivered to background subscribers only. The value is
+// always read from Date.now(), so pausing or a late tick never causes drift.
 
 const currentSecond = () => Math.floor(Date.now() / 1000)
 
 let now = currentSecond()
 const listeners = new Set()
+const backgroundListeners = new Set()
 let alignTimeout = null
 let interval = null
 
 const isActive = () => alignTimeout !== null || interval !== null
+const isHidden = () => typeof document !== 'undefined' && document.hidden
+
+function notify() {
+  backgroundListeners.forEach((listener) => listener())
+  if (!isHidden()) listeners.forEach((listener) => listener())
+}
 
 function update() {
   const next = currentSecond()
   if (next === now) return
   now = next
-  listeners.forEach((listener) => listener())
+  notify()
 }
 
 function tick() {
   update()
   // Timers can slide off the second boundary (throttling, a busy main
   // thread). Re-align if so, or displays would occasionally skip a second.
-  if (Date.now() % 1000 > 250) start()
+  // Hidden tabs are throttled anyway, so don't fight it there.
+  if (!isHidden() && Date.now() % 1000 > 250) start()
 }
 
 function stop() {
@@ -48,21 +58,31 @@ function start() {
 }
 
 function sync() {
-  const shouldRun = listeners.size > 0 && !document.hidden
+  const shouldRun = backgroundListeners.size > 0 || (listeners.size > 0 && !isHidden())
   if (shouldRun && !isActive()) start()
   else if (!shouldRun && isActive()) stop()
 }
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', sync)
+  document.addEventListener('visibilitychange', () => {
+    sync()
+    // Foreground subscribers missed any ticks while hidden; catch them up
+    // even if the second hasn't changed since the last background tick.
+    if (!document.hidden) listeners.forEach((listener) => listener())
+  })
 }
 
-/** Subscribe to second ticks outside React. Returns an unsubscribe function. */
-export function subscribeNow(listener) {
-  listeners.add(listener)
+/**
+ * Subscribe to second ticks outside React. Returns an unsubscribe function.
+ * With `{ background: true }` the ticker keeps running (and calling this
+ * listener) while the tab is hidden; use sparingly.
+ */
+export function subscribeNow(listener, { background = false } = {}) {
+  const set = background ? backgroundListeners : listeners
+  set.add(listener)
   sync()
   return () => {
-    listeners.delete(listener)
+    set.delete(listener)
     sync()
   }
 }

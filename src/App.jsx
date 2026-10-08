@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import DayTabs, { DAY_PANEL_ID } from './components/DayTabs'
 import EpisodeCard, { EpisodeCardSkeleton } from './components/EpisodeCard'
+import PomodoroTimer from './components/PomodoroTimer'
 import SearchBar from './components/SearchBar'
 import WatchlistBar from './components/WatchlistBar'
 import { useToday } from './hooks/useNow'
@@ -51,7 +52,26 @@ function ScheduleStatus({ schedule, weekCount }) {
   )
 }
 
+const FOCUS_MODE_KEY = 'focusMode'
+
+function readFocusMode() {
+  try {
+    return localStorage.getItem(FOCUS_MODE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 function App() {
+  const [focusMode, setFocusMode] = useState(readFocusMode)
+  useEffect(() => {
+    try {
+      localStorage.setItem(FOCUS_MODE_KEY, String(focusMode))
+    } catch {
+      // Not remembered across reloads; still works for this session.
+    }
+  }, [focusMode])
+
   const watchlist = useWatchlist()
   // Only pinned shows trigger the after-airing refetch.
   const schedule = useSchedule({ watchedMediaIds: watchlist.ids })
@@ -78,18 +98,37 @@ function App() {
             Anime<span className="text-violet-400">Schedule</span>
           </h1>
           {/* Own row on phones; between title and timer from sm up. */}
-          <div className="order-last flex basis-full justify-center sm:order-none sm:flex-1 sm:basis-auto">
-            <SearchBar isPinned={watchlist.isPinned} onTogglePin={watchlist.toggle} />
-          </div>
-          {/* Pomodoro timer goes here (Phase 7) */}
-          <div className="ml-auto rounded-md border border-dashed border-slate-700 px-3 py-1 text-xs text-slate-500 sm:ml-0">
-            Timer
+          {!focusMode && (
+            <div className="order-last flex basis-full justify-center sm:order-none sm:flex-1 sm:basis-auto">
+              <SearchBar isPinned={watchlist.isPinned} onTogglePin={watchlist.toggle} />
+            </div>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <PomodoroTimer />
+            <button
+              type="button"
+              onClick={() => setFocusMode((on) => !on)}
+              aria-pressed={focusMode}
+              aria-label="Focus mode: show only the watchlist and timer"
+              title="Focus mode"
+              className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-violet-400 ${
+                focusMode
+                  ? 'border-violet-500 bg-violet-600 text-white'
+                  : 'border-slate-700 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="8" />
+                <circle cx="12" cy="12" r="3" fill="currentColor" />
+              </svg>
+              <span className="hidden sm:inline">Focus</span>
+            </button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6">
-        <ScheduleStatus schedule={schedule} weekCount={byDay.flat().length} />
+        {!focusMode && <ScheduleStatus schedule={schedule} weekCount={byDay.flat().length} />}
 
         <WatchlistBar
           ids={watchlist.ids}
@@ -99,35 +138,43 @@ function App() {
           onUnpin={watchlist.unpin}
         />
 
-        <DayTabs
-          days={days}
-          counts={isLoading ? null : byDay.map((list) => list.length)}
-          selected={selectedDay}
-          onSelect={setSelectedDay}
-        />
+        {focusMode ? (
+          <p className="text-center text-sm text-slate-400">
+            Focus mode is on. Only your watchlist and the timer are shown.
+          </p>
+        ) : (
+          <>
+            <DayTabs
+              days={days}
+              counts={isLoading ? null : byDay.map((list) => list.length)}
+              selected={selectedDay}
+              onSelect={setSelectedDay}
+            />
 
-        <section id={DAY_PANEL_ID} role="tabpanel" aria-labelledby={`day-tab-${selectedDay}`}>
-          {isLoading || dayEpisodes.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {isLoading
-                ? Array.from({ length: 8 }, (_, i) => <EpisodeCardSkeleton key={i} />)
-                : dayEpisodes.map((episode) => (
-                    <EpisodeCard
-                      key={episode.scheduleId}
-                      episode={episode}
-                      pinned={watchlist.isPinned(episode.mediaId)}
-                      onTogglePin={() => watchlist.toggle(episode)}
-                    />
-                  ))}
-            </div>
-          ) : (
-            schedule.status === 'ready' && (
-              <p className="rounded-lg border border-dashed border-slate-800 py-12 text-center text-slate-500">
-                Nothing airing this day.
-              </p>
-            )
-          )}
-        </section>
+            <section id={DAY_PANEL_ID} role="tabpanel" aria-labelledby={`day-tab-${selectedDay}`}>
+              {isLoading || dayEpisodes.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {isLoading
+                    ? Array.from({ length: 8 }, (_, i) => <EpisodeCardSkeleton key={i} />)
+                    : dayEpisodes.map((episode) => (
+                        <EpisodeCard
+                          key={episode.scheduleId}
+                          episode={episode}
+                          pinned={watchlist.isPinned(episode.mediaId)}
+                          onTogglePin={() => watchlist.toggle(episode)}
+                        />
+                      ))}
+                </div>
+              ) : (
+                schedule.status === 'ready' && (
+                  <p className="rounded-lg border border-dashed border-slate-800 py-12 text-center text-slate-500">
+                    Nothing airing this day.
+                  </p>
+                )
+              )}
+            </section>
+          </>
+        )}
       </main>
     </div>
   )
