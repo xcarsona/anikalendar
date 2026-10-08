@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import DayTabs, { DAY_PANEL_ID } from './components/DayTabs'
 import EpisodeCard, { EpisodeCardSkeleton } from './components/EpisodeCard'
+import SearchBar from './components/SearchBar'
 import WatchlistBar from './components/WatchlistBar'
 import { useToday } from './hooks/useNow'
 import { useSchedule } from './hooks/useSchedule'
@@ -72,12 +73,16 @@ function App() {
   return (
     <div className="min-h-svh flex flex-col">
       <header className="border-b border-slate-800 bg-slate-900/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <h1 className="text-lg font-semibold tracking-tight">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3">
+          <h1 className="shrink-0 text-lg font-semibold tracking-tight">
             Anime<span className="text-violet-400">Schedule</span>
           </h1>
+          {/* Own row on phones; between title and timer from sm up. */}
+          <div className="order-last flex basis-full justify-center sm:order-none sm:flex-1 sm:basis-auto">
+            <SearchBar isPinned={watchlist.isPinned} onTogglePin={watchlist.toggle} />
+          </div>
           {/* Pomodoro timer goes here (Phase 7) */}
-          <div className="rounded-md border border-dashed border-slate-700 px-3 py-1 text-xs text-slate-500">
+          <div className="ml-auto rounded-md border border-dashed border-slate-700 px-3 py-1 text-xs text-slate-500 sm:ml-0">
             Timer
           </div>
         </div>

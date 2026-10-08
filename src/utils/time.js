@@ -88,6 +88,19 @@ export function formatAirTime(airingAt) {
   return airTimeFormat.format(airingAt * 1000)
 }
 
+const airDateTimeFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+})
+
+/** Local air date and time, e.g. "Sat, Oct 10, 9:30 AM". */
+export function formatAirDateTime(airingAt) {
+  return airDateTimeFormat.format(airingAt * 1000)
+}
+
 /** Short local date, e.g. "Oct 12". */
 export function formatShortDate(date) {
   return shortDateFormat.format(date)

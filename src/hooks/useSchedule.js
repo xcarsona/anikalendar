@@ -42,16 +42,9 @@ function isFresh(cache, windowStart = weekWindow().start) {
 // Module-level so concurrent callers (including React StrictMode's double
 // effect run in dev) share one request instead of each hitting the API.
 let inflight = null
-// After giving up on a rate limit, refuse new requests until it resets.
-let blockedUntil = 0
 let lastAiredRefetch = 0
 
 function loadWeek(onRetry) {
-  if (Date.now() < blockedUntil) {
-    const err = new Error('Rate limited by AniList')
-    err.retryAfterMs = blockedUntil - Date.now()
-    return Promise.reject(err)
-  }
   if (!inflight) {
     const { start, end } = weekWindow(new Date(), FETCH_DAYS)
     inflight = fetchSchedule({ start, end, onRetry })
@@ -60,10 +53,6 @@ function loadWeek(onRetry) {
         writeCache(entry)
         console.log(`[schedule] fetched ${episodes.length} episodes from AniList`, episodes)
         return entry
-      })
-      .catch((err) => {
-        if (err.retryAfterMs) blockedUntil = Date.now() + err.retryAfterMs
-        throw err
       })
       .finally(() => {
         inflight = null

@@ -39,6 +39,9 @@ export class AniListError extends Error {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// Shared by every caller: after a 429, nothing is sent until the limit resets.
+let blockedUntil = 0
+
 // AniList's CORS config exposes X-RateLimit-Reset but not Retry-After, so in
 // the browser the reset timestamp is usually the only hint we get.
 function rateLimitWaitMs(res, attempt) {
@@ -51,20 +54,34 @@ function rateLimitWaitMs(res, attempt) {
 
 /**
  * POST a GraphQL query. Retries rate limits (waiting until the limit resets),
- * network failures, and 5xx responses up to MAX_ATTEMPTS times. `onRetry` is
- * called with { reason, waitMs, attempt } before each wait.
+ * network failures, and 5xx responses, up to `maxAttempts` tries in total.
+ * `onRetry` is called with { reason, waitMs, attempt } before each wait.
+ * Pass `maxAttempts: 1` to fail fast, and `signal` to cancel the request.
  */
-export async function anilistRequest(query, variables, { onRetry } = {}) {
+export async function anilistRequest(
+  query,
+  variables,
+  { onRetry, signal, maxAttempts = MAX_ATTEMPTS } = {},
+) {
+  if (Date.now() < blockedUntil) {
+    throw new AniListError('Rate limited by AniList', {
+      status: 429,
+      retryAfterMs: blockedUntil - Date.now(),
+    })
+  }
+
   for (let attempt = 1; ; attempt++) {
-    const isLastAttempt = attempt >= MAX_ATTEMPTS
+    const isLastAttempt = attempt >= maxAttempts
     let res
     try {
       res = await fetch(ANILIST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ query, variables }),
+        signal,
       })
     } catch (cause) {
+      if (signal?.aborted) throw cause
       // Also lands here when a 429 comes back without CORS headers.
       if (isLastAttempt) throw new AniListError('Network error', { cause })
       const waitMs = 5000 * 3 ** (attempt - 1)
@@ -75,6 +92,7 @@ export async function anilistRequest(query, variables, { onRetry } = {}) {
 
     if (res.status === 429) {
       const waitMs = rateLimitWaitMs(res, attempt)
+      blockedUntil = Math.max(blockedUntil, Date.now() + waitMs)
       if (isLastAttempt) {
         throw new AniListError('Rate limited by AniList', { status: 429, retryAfterMs: waitMs })
       }
@@ -149,4 +167,45 @@ export async function fetchSchedule({ start, end, onRetry }) {
   }
 
   return episodes
+}
+
+const SEARCH_QUERY = `
+  query ($search: String) {
+    Page(perPage: 10) {
+      media(
+        search: $search
+        type: ANIME
+        status_in: [RELEASING, NOT_YET_RELEASED]
+        isAdult: false
+        sort: SEARCH_MATCH
+      ) {
+        id
+        title { romaji english }
+        coverImage { large }
+        siteUrl
+        format
+        status
+        nextAiringEpisode { airingAt episode }
+      }
+    }
+  }
+`
+
+/**
+ * Search airing and upcoming anime by title. Fails fast on rate limits rather
+ * than retrying, since the user is waiting on it. Results look like
+ * { mediaId, title, coverImage, siteUrl, format, status, nextEpisode }, where
+ * nextEpisode is { airingAt, episode } or null.
+ */
+export async function searchAnime(term, { signal } = {}) {
+  const data = await anilistRequest(SEARCH_QUERY, { search: term }, { signal, maxAttempts: 1 })
+  return data.Page.media.map((media) => ({
+    mediaId: media.id,
+    title: media.title.english ?? media.title.romaji,
+    coverImage: media.coverImage?.large ?? null,
+    siteUrl: media.siteUrl,
+    format: media.format,
+    status: media.status,
+    nextEpisode: media.nextAiringEpisode,
+  }))
 }
