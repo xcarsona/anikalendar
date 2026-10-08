@@ -7,3 +7,9 @@
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
 }
+
+/* Slim, dark scrollbars for the watchlist bar, tab strip, and search results. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-slate-700) transparent;
+}

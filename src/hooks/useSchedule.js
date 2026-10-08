@@ -51,7 +51,7 @@ function loadWeek(onRetry) {
       .then((episodes) => {
         const entry = { fetchedAt: Date.now(), windowStart: start, episodes }
         writeCache(entry)
-        console.log(`[schedule] fetched ${episodes.length} episodes from AniList`, episodes)
+        if (import.meta.env.DEV) console.log(`[schedule] fetched ${episodes.length} episodes from AniList`, episodes)
         return entry
       })
       .finally(() => {
@@ -134,7 +134,7 @@ export function useSchedule({ watchedMediaIds } = {}) {
     const cache = readCache()
     if (isFresh(cache, today)) {
       const ageMin = Math.round((Date.now() - cache.fetchedAt) / 60000)
-      console.log(`[schedule] using cache (${ageMin} min old, ${cache.episodes.length} episodes)`, cache.episodes)
+      if (import.meta.env.DEV) console.log(`[schedule] using cache (${ageMin} min old, ${cache.episodes.length} episodes)`, cache.episodes)
       return
     }
     // load() only sets state after the fetch settles, not synchronously.
@@ -164,7 +164,7 @@ export function useSchedule({ watchedMediaIds } = {}) {
         AIRED_REFETCH_DELAY_MS,
         lastAiredRefetch + AIRED_REFETCH_MIN_GAP_MS - Date.now(),
       )
-      console.log(`[schedule] watched episode aired; refetching in ${Math.round(waitMs / 1000)}s`)
+      if (import.meta.env.DEV) console.log(`[schedule] watched episode aired; refetching in ${Math.round(waitMs / 1000)}s`)
       timer = setTimeout(() => {
         timer = null
         lastAiredRefetch = Date.now()

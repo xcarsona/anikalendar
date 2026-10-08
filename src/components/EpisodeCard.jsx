@@ -58,7 +58,7 @@ export default function EpisodeCard({ episode, pinned, onTogglePin }) {
 
 export function EpisodeCardSkeleton() {
   return (
-    <div aria-hidden="true" className="flex animate-pulse gap-3 rounded-lg border border-slate-800 bg-slate-900 p-3">
+    <div aria-hidden="true" className="flex motion-safe:animate-pulse gap-3 rounded-lg border border-slate-800 bg-slate-900 p-3">
       <div className="aspect-[2/3] w-20 shrink-0 rounded-md bg-slate-800" />
       <div className="flex flex-1 flex-col gap-2 pt-1">
         <div className="h-4 w-4/5 rounded bg-slate-800" />

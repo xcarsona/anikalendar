@@ -55,11 +55,11 @@ export default function WatchlistBar({ ids, meta, episodes, scheduleStatus, onUn
         className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400"
       >
         Watchlist
-        {ids.length > 0 && <span className="ml-1.5 text-slate-600">{ids.length}</span>}
+        {ids.length > 0 && <span className="ml-1.5 text-slate-400">{ids.length}</span>}
       </h2>
 
       {items.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-500">
+        <p className="rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">
           Star a show to pin it here.
         </p>
       ) : (
@@ -94,7 +94,7 @@ export default function WatchlistBar({ ids, meta, episodes, scheduleStatus, onUn
                     <Countdown airingAt={next.airingAt} />
                   </>
                 ) : (
-                  <p className="text-xs text-slate-500">{noEpisodeText}</p>
+                  <p className="text-xs text-slate-400">{noEpisodeText}</p>
                 )}
               </div>
               <PinButton

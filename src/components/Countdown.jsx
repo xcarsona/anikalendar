@@ -10,11 +10,11 @@ export default function Countdown({ airingAt }) {
   if (remaining.done) {
     return now - airingAt < AIRING_NOW_SECONDS ? (
       <span role="timer" className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
-        <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-emerald-400" />
+        <span aria-hidden="true" className="size-2 motion-safe:animate-pulse rounded-full bg-emerald-400" />
         Airing now
       </span>
     ) : (
-      <span role="timer" className="text-sm text-slate-500">
+      <span role="timer" className="text-sm text-slate-400">
         Aired
       </span>
     )

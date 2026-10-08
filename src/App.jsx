@@ -28,7 +28,7 @@ function ScheduleStatus({ schedule, weekCount }) {
 
   return (
     <div className="space-y-2" aria-live="polite">
-      {message && <p className="text-xs text-slate-500">{message}</p>}
+      {message && <p className="text-xs text-slate-400">{message}</p>}
       {error && (
         <div
           role="alert"
@@ -53,6 +53,7 @@ function ScheduleStatus({ schedule, weekCount }) {
 }
 
 const FOCUS_MODE_KEY = 'focusMode'
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 function readFocusMode() {
   try {
@@ -92,9 +93,15 @@ function App() {
 
   return (
     <div className="min-h-svh flex flex-col">
+      <a
+        href="#main"
+        className="sr-only rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-30"
+      >
+        Skip to content
+      </a>
       <header className="border-b border-slate-800 bg-slate-900/80">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3">
-          <h1 className="shrink-0 text-lg font-semibold tracking-tight">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 px-4 py-3 sm:gap-x-4">
+          <h1 className="shrink-0 text-base font-semibold tracking-tight sm:text-lg">
             Anime<span className="text-violet-400">Schedule</span>
           </h1>
           {/* Own row on phones; between title and timer from sm up. */}
@@ -127,7 +134,7 @@ function App() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 focus:outline-none">
         {!focusMode && <ScheduleStatus schedule={schedule} weekCount={byDay.flat().length} />}
 
         <WatchlistBar
@@ -167,7 +174,7 @@ function App() {
                 </div>
               ) : (
                 schedule.status === 'ready' && (
-                  <p className="rounded-lg border border-dashed border-slate-800 py-12 text-center text-slate-500">
+                  <p className="rounded-lg border border-dashed border-slate-800 py-12 text-center text-slate-400">
                     Nothing airing this day.
                   </p>
                 )
@@ -176,6 +183,21 @@ function App() {
           </>
         )}
       </main>
+
+      {!focusMode && (
+        <footer className="border-t border-slate-800 px-4 py-6 text-center text-xs text-slate-400">
+          Schedule data from{' '}
+          <a
+            href="https://anilist.co"
+            target="_blank"
+            rel="noreferrer"
+            className="text-slate-300 underline hover:text-violet-300"
+          >
+            AniList
+          </a>
+          . Not affiliated with AniList. Times are in your time zone ({TIME_ZONE}).
+        </footer>
+      )}
     </div>
   )
 }

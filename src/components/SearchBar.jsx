@@ -93,7 +93,7 @@ export default function SearchBar({ isPinned, onTogglePin }) {
         onKeyDown={(event) => {
           if (event.key === 'Escape') setOpen(false)
         }}
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm placeholder:text-slate-500 focus:border-violet-500 focus:outline-none"
+        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm placeholder:text-slate-400 focus:border-violet-500 focus:outline-none"
       />
 
       {showPanel && (
@@ -103,7 +103,7 @@ export default function SearchBar({ isPinned, onTogglePin }) {
           tabIndex={-1}
           className="absolute inset-x-0 top-full z-20 mt-2 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl shadow-black/40 focus:outline-none"
         >
-          <p aria-live="polite" className="px-3 pt-2 pb-1 text-xs text-slate-500">
+          <p aria-live="polite" className="px-3 pt-2 pb-1 text-xs text-slate-400">
             {isLoading
               ? 'Searching…'
               : error
@@ -157,7 +157,7 @@ function SearchResult({ show, pinned, onTogglePin }) {
           {title}
           <span className="sr-only"> (opens AniList in a new tab)</span>
         </a>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           {[format?.replace('_', ' '), STATUS_LABELS[status]].filter(Boolean).join(' · ')}
         </p>
         {nextEpisode ? (
@@ -168,7 +168,7 @@ function SearchResult({ show, pinned, onTogglePin }) {
             <Countdown airingAt={nextEpisode.airingAt} />
           </p>
         ) : (
-          <p className="text-xs text-slate-500">No air date yet</p>
+          <p className="text-xs text-slate-400">No air date yet</p>
         )}
       </div>
       <PinButton pinned={pinned} title={title} onToggle={onTogglePin} />
